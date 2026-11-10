@@ -33,6 +33,30 @@ aside { width: 272px; flex-shrink: 0; border-right: 1px solid var(--line); displ
 .group { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 12px 8px 4px; }
 .conv { border: 0; background: none; text-align: left; padding: 7px 8px; border-radius: 8px; cursor: pointer; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .conv:hover, .conv.on { background: var(--panel); color: var(--ink); }
+.tabs { display: flex; gap: 2px; background: var(--line); padding: 3px; border-radius: 10px; }
+.tabs button { flex: 1; border: 0; background: none; border-radius: 8px; padding: 5px 0; font-size: 13px; color: var(--muted); cursor: pointer; }
+.tabs button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+#loopCount:not(:empty) { background: var(--mem); color: var(--panel); border-radius: 999px; font-size: 11px; padding: 0 6px; margin-left: 3px; }
+.panel { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+[hidden] { display: none !important; }
+.item { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 9px 10px; font-size: 13px; line-height: 1.45; }
+.item b { display: block; font-weight: 600; }
+.item small { color: var(--faint); display: block; margin-top: 2px; }
+.item.due { border-color: var(--mem); background: var(--mem-bg); }
+.item.closed { opacity: .65; }
+.acts { display: flex; gap: 6px; margin-top: 8px; }
+.mini { border: 1px solid var(--line); background: var(--bg); border-radius: 7px; padding: 2px 9px; font-size: 12px; cursor: pointer; }
+.mini:hover { border-color: var(--faint); }
+.fact { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.x { border: 0; background: none; color: var(--faint); cursor: pointer; font-size: 17px; line-height: 1; padding: 0 2px; }
+.x:hover { color: var(--warn); }
+.code { font: 11.5px/1.4 ui-monospace, Menlo, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; word-break: break-all; margin-top: 7px; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 10px 2px 2px; }
+.note { color: var(--faint); font-size: 13px; margin: 6px 4px; }
+.ping { border: 1px solid var(--mem); background: var(--mem-bg); border-radius: var(--radius); padding: 14px 16px; margin: 0 0 28px; text-align: left; }
+.ping h3 { margin: 0 0 6px; font-size: 14px; color: var(--mem); }
+.ping .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; }
+.ping small { color: var(--muted); }
 .clock { border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--muted); }
 .clock label { display: block; margin-bottom: 6px; }
 .clock input { width: 100%; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 8px; }
@@ -77,7 +101,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .metrics { margin-top: 10px; font-size: 12px; color: var(--faint); }
 .error { color: var(--warn); }
 
-form { padding: 12px 24px 22px; }
+form { padding: 12px 24px 22px; width: 100%; }
 .composer { display: flex; gap: 8px; align-items: flex-end; border: 1px solid var(--line); background: var(--panel); border-radius: 18px; padding: 8px 8px 8px 16px; }
 .composer:focus-within { border-color: var(--faint); }
 textarea { flex: 1; border: 0; background: none; resize: none; outline: none; max-height: 200px; padding: 6px 0; }
@@ -93,7 +117,14 @@ textarea { flex: 1; border: 0; background: none; resize: none; outline: none; ma
   <div class="brand"><svg width="30" height="30" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="currentColor"/><circle cx="16" cy="16" r="6" fill="none" stroke="#f2b33d" stroke-width="3"/></svg>
     <div><b>minimi</b><br><span>remembers what it told you</span></div></div>
   <button class="new" id="new">＋ New chat</button>
-  <nav id="convs"></nav>
+  <div class="tabs" role="tablist">
+    <button data-tab="convs" class="on">Chats</button>
+    <button data-tab="loops">Loops<span id="loopCount"></span></button>
+    <button data-tab="memory">Memory</button>
+  </div>
+  <nav id="convs" class="panel"></nav>
+  <div id="loops" class="panel" hidden></div>
+  <div id="memory" class="panel" hidden></div>
   <div class="clock" id="clockBox">
     <label for="clock">Time travel: pretend today is…</label>
     <input type="date" id="clock">
@@ -117,6 +148,7 @@ let conversationId = null, busy = false;
 
 const EXAMPLES = [
   'What is the cheapest managed Postgres hosting for a small SaaS right now?',
+  'I need to pick a CRM for my 20-person sales team by Friday. Shortlist 5 with pricing.',
   'What did I ask you on 3 November? Is your answer still correct today?',
   'Last Tuesday I asked you about Postgres hosting. Has any pricing changed since then?',
 ];
@@ -134,7 +166,7 @@ function syncClock() {
   $('clockBox').classList.toggle('on', on);
   $('hint').textContent = on ? `Clock set to ${fmtDay($('clock').value)}. New messages are stored on that day.` : `Today is ${fmtDay(realToday())} · memory spans all chats`;
   store.set('asOf', on ? $('clock').value : '');
-  loadConvs();
+  refreshSide(); showPings();
 }
 $('clock').onchange = syncClock;
 
@@ -166,11 +198,74 @@ async function openConv(id) {
 
 $('new').onclick = () => { conversationId = null; showEmpty(); loadConvs(); $('input').focus(); };
 
+// ---- tabs: chats · open loops inbox · memory you own ----
+document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+  for (const id of ['convs', 'loops', 'memory']) $(id).hidden = id !== b.dataset.tab;
+}));
+const api = (url, opts) => fetch(url, opts).then((r) => r.json()).catch(() => null);
+const followUp = (title) => send(`Follow up on my open loop: "${title}". Where does it stand now?`);
+const dueText = (l) => !l.dueDay ? '' : l.dueDay < today() ? `overdue since ${fmtDay(l.dueDay)}` : l.dueDay === today() ? 'due today' : `due ${fmtDay(l.dueDay)}`;
+let loopsById = new Map();
+
+async function loadLoops() {
+  const loops = (await api('/api/loops')) || [];
+  loopsById = new Map(loops.map((l) => [l.id, l]));
+  const open = loops.filter((l) => l.status === 'open'), closed = loops.filter((l) => l.status === 'closed');
+  $('loopCount').textContent = open.length || '';
+  $('loops').innerHTML = (open.length ? '' : '<p class="note">No open loops. Mention a decision or a follow-up and minimi keeps track of it here.</p>')
+    + open.map((l) => `<div class="item ${l.dueDay && l.dueDay <= today() ? 'due' : ''}"><b>${esc(l.title)}</b>
+        <small>opened ${fmtDay(l.openedDay)}${l.dueDay ? ' · ' + dueText(l) : ''}</small>
+        <div class="acts"><button class="mini" data-follow="${l.id}">Check now</button><button class="mini" data-done="${l.id}">Done</button></div></div>`).join('')
+    + (closed.length ? '<div class="label">Closed · decisions traced</div>' + closed.slice(0, 15).map((l) =>
+        `<div class="item closed"><b>${esc(l.title)}</b><small>✓ ${esc(l.decision || '')} · ${fmtDay(l.closedDay)}</small></div>`).join('') : '');
+}
+$('loops').onclick = async (e) => {
+  const { follow, done } = e.target.dataset;
+  if (follow) followUp(loopsById.get(+follow).title);
+  if (done) { await api(`/api/loops/${done}/close`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ asOf: today() }) }); refreshSide(); showPings(); }
+};
+
+async function loadMemory() {
+  const facts = (await api('/api/profile')) || [];
+  const url = location.origin + '/mcp', cmd = `claude mcp add --transport http minimi ${url}`;
+  $('memory').innerHTML = '<div class="label">What minimi knows about you</div>'
+    + (facts.length ? facts.map((f) => `<div class="item fact"><div><b>${esc(f.value)}</b><small>${esc(f.key)} · since ${fmtDay(f.day)}</small></div>
+        <button class="x" title="Forget this" data-forget="${esc(f.key)}">×</button></div>`).join('')
+      : '<p class="note">Nothing yet. Mention your team, stack or city once and minimi won\'t ask again.</p>')
+    + `<div class="label">Memory MCP</div><div class="item"><b>Plug this memory into any AI</b>
+        <small>Claude, ChatGPT, Cursor… Read-only, localhost only.</small>
+        <div class="code">${esc(cmd)}</div>
+        <div class="acts"><button class="mini" data-copy="${esc(url)}">Copy link</button><button class="mini" data-copy="${esc(cmd)}">Copy command</button></div></div>`;
+}
+$('memory').onclick = async (e) => {
+  const { forget, copy } = e.target.dataset;
+  if (forget) { await api('/api/profile/' + encodeURIComponent(forget), { method: 'DELETE' }); loadMemory(); }
+  if (copy) { try { await navigator.clipboard.writeText(copy); e.target.textContent = 'Copied ✓'; } catch {} }
+};
+
+// ---- pings: due loops surface on their own when you open minimi ----
+async function showPings() {
+  const due = (await api('/api/pings?today=' + today())) || [];
+  document.title = due.length ? `(${due.length}) minimi` : 'minimi';
+  const empty = $('col').querySelector('.empty');
+  $('col').querySelector('.ping')?.remove();
+  if (!due.length || !empty) return;
+  const card = document.createElement('div');
+  card.className = 'ping';
+  card.innerHTML = `<h3>🐾 minimi pinged you · ${due.length} open loop${due.length > 1 ? 's' : ''} need${due.length > 1 ? '' : 's'} you</h3>`
+    + due.map((l) => `<div class="row"><span>${esc(l.title)} <small>· ${dueText(l)}</small></span><button class="mini" data-follow="${l.id}">Check now</button></div>`).join('');
+  card.onclick = (e) => { const id = e.target.dataset.follow; if (id) followUp(due.find((l) => l.id === +id).title); };
+  empty.prepend(card);
+}
+const refreshSide = () => { loadConvs(); loadLoops(); loadMemory(); };
+
 function showEmpty() {
   $('col').innerHTML = `<div class="empty"><h1>Ask, then ask again next week.</h1>
     <p>Live web search, plus memory of every past chat, with dates.</p>
     <div class="examples">${EXAMPLES.map((e) => `<button>${esc(e)}</button>`).join('')}</div></div>`;
   $('col').querySelectorAll('.examples button').forEach((b) => (b.onclick = () => send(b.textContent)));
+  showPings();
 }
 
 // ---- messages ----
@@ -261,6 +356,8 @@ async function send(text) {
     view.render(true); scroll();
     busy = false; $('send').disabled = false; $('input').focus();
     loadConvs();
+    // facts, profile and loops are filed in the background after each reply
+    setTimeout(refreshSide, 5000); setTimeout(refreshSide, 12000);
   }
 }
 

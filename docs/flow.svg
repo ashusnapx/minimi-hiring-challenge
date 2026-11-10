@@ -74,14 +74,14 @@
     <text x="1052" y="508" font-size="13" fill="#8a847a">atomic JSON write</text>
 
     <rect x="786" y="430" width="200" height="96" rx="16" fill="#fffefb" stroke="#c9c3b8" stroke-width="1.5" stroke-dasharray="6 5"/>
-    <text x="806" y="462" font-size="18" font-weight="700" fill="#1c1a17">7 · Extract facts</text>
-    <text x="806" y="486" fill="#1c1a17">claims.ts · Haiku 5.5</text>
-    <text x="806" y="508" font-size="13" fill="#8a847a">structured output</text>
+    <text x="806" y="462" font-size="18" font-weight="700" fill="#1c1a17">7 · Remember</text>
+    <text x="806" y="486" fill="#1c1a17">remember.ts · Haiku 5.5</text>
+    <text x="806" y="508" font-size="13" fill="#8a847a">one structured call</text>
 
     <rect x="540" y="430" width="200" height="96" rx="16" fill="#fdf3df" stroke="#e9c27a" stroke-width="1.5"/>
-    <text x="560" y="462" font-size="18" font-weight="700" fill="#1c1a17">Claims ledger</text>
-    <text x="560" y="486" font-size="14" fill="#1c1a17">subject · attribute · value</text>
-    <text x="560" y="508" font-size="14" fill="#1c1a17">· source · day</text>
+    <text x="560" y="462" font-size="18" font-weight="700" fill="#1c1a17">Memory ledger</text>
+    <text x="560" y="486" font-size="14" fill="#1c1a17">claims · profile facts</text>
+    <text x="560" y="508" font-size="14" fill="#1c1a17">open loops · decisions</text>
   </g>
   <g stroke="#8a847a" stroke-width="2" marker-end="url(#a)" fill="none">
     <line x1="1132" y1="284" x2="1132" y2="426"/>
@@ -89,5 +89,5 @@
     <line x1="784" y1="478" x2="744" y2="478"/>
   </g>
   <path d="M538 478 H394 V286" fill="none" stroke="#b7791f" stroke-width="2.5" stroke-dasharray="7 6" marker-end="url(#g)"/>
-  <text x="406" y="560" font-size="14" font-weight="600" fill="#b7791f">next week’s “has it changed since?”</text>
+  <text x="406" y="560" font-size="14" font-weight="600" fill="#b7791f">next turn: no re-briefing · then vs now · pings · /mcp</text>
 </svg>
