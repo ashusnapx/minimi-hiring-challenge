@@ -12,18 +12,27 @@ export type Message = {
 /** One checkable fact the agent stated, kept so a later turn can compare then vs now. */
 export type Claim = { messageId: number; subject: string; attribute: string; value: string; sourceUrl?: string; day: string };
 
-type Data = { conversations: Conversation[]; messages: Message[]; claims: Claim[] };
+/** Something the user still has to decide, do or re-check. Closed by a later turn, with the decision traced. */
+export type Loop = {
+  id: number; title: string; openedDay: string; dueDay?: string; messageId: number;
+  status: 'open' | 'closed'; decision?: string; closedDay?: string;
+};
+/** A durable fact the user told us about themselves ("20-person sales team"), so they never brief us twice. */
+export type ProfileFact = { key: string; value: string; day: string };
+
+type Data = { conversations: Conversation[]; messages: Message[]; claims: Claim[]; loops: Loop[]; profile: ProfileFact[] };
+const empty = (): Data => ({ conversations: [], messages: [], claims: [], loops: [], profile: [] });
 
 // shortcut: the whole store lives in memory and is rewritten atomically on each change.
 // Fine for one user (~10k turns, no native deps so `npm install` never breaks); move to SQLite + FTS5 for multi-user.
 export class Store {
-  data: Data = { conversations: [], messages: [], claims: [] };
+  data: Data = empty();
 
   /** `file: null` keeps everything in memory (tests, evals). */
   constructor(private file: string | null) {
     if (!file) return;
     try {
-      this.data = JSON.parse(readFileSync(file, 'utf8'));
+      this.data = { ...empty(), ...JSON.parse(readFileSync(file, 'utf8')) }; // older files lack newer collections
     } catch (e) {
       // Never start empty over an unreadable file: that would wipe the user's memory on the next save.
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw new Error(`Cannot read memory file ${file}: ${(e as Error).message}`);
@@ -77,5 +86,41 @@ export class Store {
 
   claimsFor(messageId: number) {
     return this.data.claims.filter((c) => c.messageId === messageId);
+  }
+
+  openLoops() {
+    return this.data.loops.filter((l) => l.status === 'open');
+  }
+
+  /** Open loops whose due day has arrived: what minimi pings about. */
+  dueLoops(today: string) {
+    return this.openLoops().filter((l) => l.dueDay && l.dueDay <= today);
+  }
+
+  openLoop(l: Omit<Loop, 'id' | 'status'>): Loop {
+    const loop: Loop = { id: (this.data.loops.at(-1)?.id ?? 0) + 1, status: 'open', ...l };
+    this.data.loops.push(loop);
+    this.save();
+    return loop;
+  }
+
+  closeLoop(id: number, decision: string, day: string) {
+    const l = this.data.loops.find((x) => x.id === id && x.status === 'open');
+    if (!l) return undefined;
+    Object.assign(l, { status: 'closed', decision, closedDay: day });
+    this.save();
+    return l;
+  }
+
+  setProfile(key: string, value: string, day: string) {
+    this.data.profile = this.data.profile.filter((f) => f.key !== key).concat({ key, value, day });
+    this.save();
+  }
+
+  forgetProfile(key: string) {
+    const before = this.data.profile.length;
+    this.data.profile = this.data.profile.filter((f) => f.key !== key);
+    if (this.data.profile.length !== before) this.save();
+    return this.data.profile.length !== before;
   }
 }

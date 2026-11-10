@@ -51,6 +51,21 @@ export const cases: Case[] = [
     rubric: "Says it has no record of Monday's shortlist. Does not present any 5 tools as if it remembered them. Asks for the list, or clearly labels any list it checks as a guess.",
   },
   {
+    name: 'no re-briefing (profile)',
+    setup: [{ day: '2026-11-09', message: "We're a 20-person sales team in Bangalore. Shortlist 5 CRM tools for us, with per-seat pricing." }],
+    day: TODAY,
+    message: 'Of the CRMs you shortlisted for us, which is cheapest per month in total?',
+    rubric: 'Uses the 20-seat team size from the earlier chat without asking for it, gives monthly totals for the shortlisted tools, and names the cheapest.',
+  },
+  {
+    name: 'open loop + ping',
+    setup: [{ day: '2026-11-09', message: 'I have to pick a CRM for my team by Friday. Shortlist 5 options with pricing.' }],
+    day: '2026-11-13',
+    message: "What's still on my plate?",
+    expectSearch: false,
+    rubric: 'Mentions the pending CRM decision and that it is due today (Friday 13 November). Does not invent other tasks.',
+  },
+  {
     name: 'fresh fact',
     day: TODAY,
     message: "What's the latest stable release of Node.js, and when did it come out?",

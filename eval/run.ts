@@ -20,7 +20,7 @@ async function runCase(c: Case): Promise<Result> {
   const store = new Store(null); // every case starts with a clean memory
   for (const s of c.setup ?? []) {
     const r = await chatTurn(store, { message: s.message, tz: TZ, now: new Date(), today: s.day }, () => {});
-    await r.claims; // the fact ledger must exist before the follow-up, as it would a week later
+    await r.remembered; // facts, profile and loops must exist before the follow-up, as they would a week later
   }
   let done = { ms: 0, firstTokenMs: null as number | null, searches: 0 };
   const r = await chatTurn(store, { message: c.message, tz: TZ, now: new Date(), today: c.day }, (e) => {

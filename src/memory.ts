@@ -1,13 +1,13 @@
 import { localTime, longDate, resolveDates, type DayRange } from './dates';
-import type { Claim, Conversation, Message, Store } from './store';
+import type { Claim, Conversation, Loop, Message, ProfileFact, Store } from './store';
 
 export type Turn = { conversation: Conversation; question: Message; answer?: Message; claims: Claim[] };
 export type DateFinding = { phrase: string; options: { range: DayRange; questions: number }[]; chosen: DayRange[] };
-export type Recall = { dates: DateFinding[]; turns: Turn[]; recent: Conversation[]; firstDay?: string };
+export type Recall = { dates: DateFinding[]; turns: Turn[]; recent: Conversation[]; firstDay?: string; profile: ProfileFact[]; loops: Loop[]; today: string };
 
 // Words that signal the user is pointing at an earlier conversation.
 const PAST_CUE =
-  /\b(asked|told|said|earlier|before|previous(ly)?|last time|remember|recall|since|still|again|we (discussed|talked|shortlisted|compared|picked|chose|looked|decided)|you (said|told|recommended|suggested|mentioned|answered))\b/i;
+  /\b(asked|told|said|earlier|before|previous(ly)?|last time|remember|recall|since|still|again|(we|you) (discussed|talked|shortlisted|compared|picked|chose|looked|decided|said|told|recommended|suggested|mentioned|answered)|on my plate|open loops?|pending|follow(ed)? up)\b/i;
 const STOP = new Set(
   `the and but then than that this those these what which who whom when where why how are was were been being does did have has had
   you your yours our ours their they them she him her its not any some all can could would should will just also there here about from with into over after before since
@@ -54,7 +54,8 @@ export function recall(store: Store, text: string, today: string, currentId?: st
   });
 
   const firstDay = store.data.messages.filter((m) => m.conversationId !== currentId).map((m) => m.day).sort()[0];
-  return { dates, turns, recent: store.conversations().filter((c) => c.id !== currentId).slice(0, 8), firstDay };
+  const recent = store.conversations().filter((c) => c.id !== currentId).slice(0, 8);
+  return { dates, turns, recent, firstDay, profile: store.data.profile, loops: store.openLoops(), today };
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)} …[truncated]` : s);
@@ -85,6 +86,18 @@ export function renderMemory(r: Recall, tz: string): string {
   }
 
   if (r.recent.length) out.push('', `Recent conversations: ${r.recent.map((c) => `${c.day} "${c.title}"`).join('; ')}`);
+
+  if (r.profile.length) {
+    out.push('', 'About the user (they told you earlier; use these instead of asking again):');
+    for (const f of r.profile) out.push(`- ${f.key}: ${f.value} (since ${f.day})`);
+  }
+  if (r.loops.length) {
+    out.push('', "The user's open loops (decisions or follow-ups they still owe):");
+    for (const l of r.loops) {
+      const due = l.dueDay ? `, due ${longDate(l.dueDay)}${l.dueDay < r.today ? ' (OVERDUE)' : l.dueDay === r.today ? ' (DUE TODAY)' : ''}` : '';
+      out.push(`- #${l.id} ${l.title} (opened ${longDate(l.openedDay)}${due})`);
+    }
+  }
   out.push('</memory>');
   return out.join('\n');
 }

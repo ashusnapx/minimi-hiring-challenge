@@ -1,7 +1,7 @@
 import { runAgent, type AgentEvent } from './agent';
-import { extractClaims } from './claims';
 import { localDay } from './dates';
 import { recall, renderMemory } from './memory';
+import { remember } from './remember';
 import { systemPrompt } from './prompt';
 import type { Store } from './store';
 
@@ -16,7 +16,7 @@ const HISTORY_TURNS = 20;
 
 /**
  * One chat turn, independent of HTTP: the server streams these events as SSE, the eval reads them directly.
- * recall (code) → prompt → agent loop (model + search) → save → extract facts in the background.
+ * recall (code) → prompt → agent loop (model + search) → save → remember facts, profile and loops in the background.
  */
 export async function chatTurn(store: Store, input: ChatInput, emit: (e: ChatEvent) => void, signal?: AbortSignal) {
   const t0 = Date.now();
@@ -38,7 +38,7 @@ export async function chatTurn(store: Store, input: ChatInput, emit: (e: ChatEve
     notes: mem.dates.filter((d) => !d.chosen.length).map((d) => `No conversation on record for "${d.phrase}"`),
   });
 
-  store.addMessage({ conversationId: conv.id, role: 'user', content: message, at, day: today });
+  const question = store.addMessage({ conversationId: conv.id, role: 'user', content: message, at, day: today });
   const result = await runAgent({
     system: systemPrompt(today, tz, renderMemory(mem, tz)),
     messages: [...history, { role: 'user', content: message }],
@@ -53,11 +53,9 @@ export async function chatTurn(store: Store, input: ChatInput, emit: (e: ChatEve
   const answer = store.addMessage({ conversationId: conv.id, role: 'assistant', content: result.text, sources: cited, at: new Date().toISOString(), day: today });
   emit({ type: 'done', ms: Date.now() - t0, firstTokenMs, searches: result.searches });
 
-  // After the reply: record what was claimed, so a later "has this changed?" has something to compare against.
-  const claims = extractClaims(answer)
-    .then((c) => store.addClaims(c))
-    .catch((e) => console.warn(`[claims] skipped for message ${answer.id}: ${(e as Error).message}`));
-  return { conversationId: conv.id, answer, claims };
+  // After the reply: file facts, profile and open loops, so later turns can compare, skip briefing, and follow up.
+  const remembered = remember(store, question, answer).catch((e) => console.warn(`[remember] skipped for message ${answer.id}: ${(e as Error).message}`));
+  return { conversationId: conv.id, answer, remembered };
 }
 
 function title(message: string) {
