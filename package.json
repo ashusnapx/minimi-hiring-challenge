@@ -1,0 +1,28 @@
+{
+  "name": "minimi-chat-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chat agent with web search that remembers what it told you, and checks whether it is still true.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "test": "tsx --test test/*.test.ts",
+    "eval": "tsx eval/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@hono/node-server": "^2.1.6",
+    "chrono-node": "^2.10.3",
+    "hono": "^4.13.17"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
